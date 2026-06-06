@@ -1,0 +1,978 @@
+{
+  "entities": {
+    "Post": {
+      "title": "Post",
+      "description": "A farmer community post with text, image, and voice capabilities",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique post identifier" },
+        "author": { "type": "string", "description": "Display name of the author" },
+        "authorUid": { "type": "string", "description": "The firebase auth UID of the author" },
+        "isVerified": { "type": "boolean", "description": "Whether the farmer is an officially verified grower" },
+        "content": { "type": "string", "description": "Post narrative content in English, Kannada, or Hindi" },
+        "image": { "type": "string", "description": "Base64 payload or public URL string represent of crop sample" },
+        "voiceUrl": { "type": "string", "description": "Optional recorded voice message base64 or URL data" },
+        "voiceCaption": { "type": "string", "description": "Optional captions generated for the voice recording" },
+        "likes": { "type": "number", "description": "Total count of liked interactions" },
+        "district": { "type": "string", "description": "The district filter scope e.g., Kolar, Raichur, Mandya" },
+        "village": { "type": "string", "description": "Optional village level scope of the discussion" },
+        "category": { "type": "string", "description": "Discussion category e.g., disease, weather, crop_update" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server time of creation" }
+      },
+      "required": ["id", "author", "authorUid", "content", "likes", "district", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A reply on a direct community post with language settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "author": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "author", "authorUid", "content", "createdAt"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "A like record syncing posts atomic tallies",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Centralized farmer and user identity document",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string", "description": "The unique farmer/user identifier associated with their authentication UID" },
+        "fullName": { "type": "string", "description": "The user's full display name" },
+        "district": { "type": "string", "description": "The farming district" },
+        "village": { "type": "string", "description": "The specialized home village" },
+        "crops": { "type": "array", "description": "Main crops grown by this farmer" },
+        "irrigationType": { "type": "string", "description": "Selected irrigation method e.g. Drip or Borewell" },
+        "cooperativeId": { "type": "string", "description": "Assigned cooperative community union ID" },
+        "marketplaceActivity": { "type": "object", "description": "Activity log metrics within direct peer trading operations" },
+        "AI history": { "type": "array", "description": "Chronological summaries of disease diagnosis or price queries" },
+        "notification settings": { "type": "object", "description": "Farmer notification enablement and preferences" },
+        "language preference": { "type": "string", "description": "The preferred translation tongue" }
+      },
+      "required": ["farmerId", "fullName", "district", "village", "crops", "irrigationType", "cooperativeId"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Real-time communication room for direct or category/district discussions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["private", "group"] },
+        "title": { "type": "string" },
+        "district": { "type": "string" },
+        "village": { "type": "string" },
+        "crop": { "type": "string" },
+        "members": { "type": "array" },
+        "lastMessage": { "type": "string" },
+        "lastSenderName": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "title", "members", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message in a discussion chat thread",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "voiceUrl": { "type": "string" },
+        "voiceCaption": { "type": "string" },
+        "translations": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "senderUid", "senderName", "content", "createdAt"]
+    },
+    "Presence": {
+      "title": "Presence",
+      "description": "Real-time online indicators for users",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "status": { "type": "string" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "typingIn": { "type": "string" }
+      },
+      "required": ["uid", "status", "lastSeen"]
+    },
+    "Cooperative": {
+      "title": "Cooperative",
+      "description": "A farmer collaborative group focused on a village, crop, irrigation, or machinery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "district": { "type": "string" },
+        "village": { "type": "string" },
+        "cropFocus": { "type": "string" },
+        "irrigationType": { "type": "string" },
+        "acreage": { "type": "number" },
+        "farmingGoals": { "type": "string" },
+        "creatorUid": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "membersCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "description", "creatorUid", "createdAt"]
+    },
+    "CooperativeMember": {
+      "title": "CooperativeMember",
+      "description": "A verified member of a cooperative farming group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "district": { "type": "string" },
+        "village": { "type": "string" },
+        "crop": { "type": "string" },
+        "irrigationType": { "type": "string" },
+        "role": { "type": "string" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "uid", "name", "role", "joinedAt"]
+    },
+    "CooperativeInvite": {
+      "title": "CooperativeInvite",
+      "description": "An invitation to join a cooperative farming group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "cooperativeName": { "type": "string" },
+        "fromUid": { "type": "string" },
+        "fromName": { "type": "string" },
+        "toUid": { "type": "string" },
+        "toName": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "fromUid", "toUid", "status", "createdAt"]
+    },
+    "CooperativeChat": {
+      "title": "CooperativeChat",
+      "description": "A cooperative chat room reference containing unread count tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "lastMessageSender": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "object" }
+      },
+      "required": ["id", "cooperativeId"]
+    },
+    "CooperativeMessage": {
+      "title": "CooperativeMessage",
+      "description": "An individual chat message in a cooperative group chat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "voiceUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "senderUid", "senderName", "content", "createdAt"]
+    },
+    "SharedResource": {
+      "title": "SharedResource",
+      "description": "A shared tractor, water source, labor pool, or bulk purchase item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["tractor", "labor", "irrigation", "seed_purchase"] },
+        "status": { "type": "string", "enum": ["available", "booked", "active", "completed"] },
+        "providerUid": { "type": "string" },
+        "providerName": { "type": "string" },
+        "costShare": { "type": "number" },
+        "savingsPct": { "type": "number" },
+        "description": { "type": "string" },
+        "bookedByUid": { "type": "string" },
+        "bookedByName": { "type": "string" },
+        "bookedUntil": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "name", "type", "status", "providerUid", "providerName", "costShare", "createdAt"]
+    },
+    "CooperativeChatMessage": {
+      "title": "CooperativeChatMessage",
+      "description": "A message sent inside a cooperative group chat with translation features",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "voiceUrl": { "type": "string" },
+        "voiceCaption": { "type": "string" },
+        "translatedContent": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "senderUid", "senderName", "content", "createdAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "A critical announcement for all cooperative members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "title", "content", "authorName", "authorUid", "createdAt"]
+    },
+    "Machinery": {
+      "title": "Machinery",
+      "description": "A farm machine available for rent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "image": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "district": { "type": "string" },
+        "village": { "type": "string" },
+        "price": { "type": "number" },
+        "pricingPeriod": { "type": "string", "enum": ["hourly", "daily"] },
+        "status": { "type": "string", "enum": ["available", "rented", "maintaining"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "name", "type", "ownerUid", "ownerName", "price", "pricingPeriod", "status"]
+    },
+    "MachineryBooking": {
+      "title": "MachineryBooking",
+      "description": "A booking request for a rented farm machinery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "machineryId": { "type": "string" },
+        "machineryName": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "renterUid": { "type": "string" },
+        "renterName": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "totalPrice": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "machineryId", "machineryName", "renterUid", "renterName", "ownerUid", "startDate", "endDate", "status"]
+    },
+    "LaborRequest": {
+      "title": "LaborRequest",
+      "description": "Request for farming laborers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "creatorUid": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "cropType": { "type": "string" },
+        "laborType": { "type": "string" },
+        "location": { "type": "string" },
+        "wagePerDay": { "type": "number" },
+        "workersNeeded": { "type": "number" },
+        "duration": { "type": "string" },
+        "emergencyPriority": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["open", "filled", "completed"] },
+        "applicants": { "type": "array" },
+        "acceptedWorkers": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "creatorUid", "creatorName", "cropType", "laborType", "location", "wagePerDay", "workersNeeded", "status"]
+    },
+    "IrrigationSchedule": {
+      "title": "IrrigationSchedule",
+      "description": "Cooperative irrigation scheduling entries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "farmerUid": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "fieldArea": { "type": "string" },
+        "startTime": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "waterSource": { "type": "string" },
+        "reminders": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "farmerUid", "farmerName", "startTime", "durationMinutes", "waterSource"]
+    },
+    "IrrigationAlert": {
+      "title": "IrrigationAlert",
+      "description": "Irrigation warnings and AI alerts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "type": { "type": "string" },
+        "message": { "type": "string" },
+        "category": { "type": "string", "enum": ["weather", "system", "borewell_conflict"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "type", "message", "category", "createdAt"]
+    },
+    "MarketplaceProduct": {
+      "title": "MarketplaceProduct",
+      "description": "A crop harvest listing created by a farmer for direct buyer connections",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "string" },
+        "unitType": { "type": "string" },
+        "price": { "type": "string" },
+        "district": { "type": "string" },
+        "village": { "type": "string" },
+        "harvestDate": { "type": "string" },
+        "organic": { "type": "boolean" },
+        "description": { "type": "string" },
+        "images": { "type": "array" },
+        "farmerUid": { "type": "string" },
+        "farmerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "sold"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "price", "farmerUid", "farmerName", "status", "createdAt"]
+    },
+    "BuyerInquiry": {
+      "title": "BuyerInquiry",
+      "description": "An inquiry request or direct offer regarding a listed crop product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "marketplaceProductId": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "farmerUid": { "type": "string" },
+        "buyerUid": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "message": { "type": "string" },
+        "contact": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "marketplaceProductId", "buyerUid", "buyerName", "message", "status", "createdAt"]
+    },
+    "MarketplaceOrder": {
+      "title": "MarketplaceOrder",
+      "description": "An order reservation request to purchase listed crop products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "quantity": { "type": "string" },
+        "price": { "type": "string" },
+        "totalPrice": { "type": "string" },
+        "farmerUid": { "type": "string" },
+        "buyerUid": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "productId", "farmerUid", "buyerUid", "status", "createdAt"]
+    },
+    "PooledHarvest": {
+      "title": "PooledHarvest",
+      "description": "Bulk harvest pooled inventories aggregated by multiple farmers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "crop": { "type": "string" },
+        "quantityKg": { "type": "number" },
+        "expectedPricePerKg": { "type": "number" },
+        "qualityGrade": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "negotiating", "sold"] },
+        "transportEst": { "type": "number" },
+        "profitEst": { "type": "number" },
+        "contributors": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "crop", "quantityKg", "expectedPricePerKg", "status", "createdAt"]
+    },
+    "TransportBooking": {
+      "title": "TransportBooking",
+      "description": "Transport vehicle reservation tracking and collective route splits",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "vehicleType": { "type": "string" },
+        "driverName": { "type": "string" },
+        "contact": { "type": "string" },
+        "capacityTons": { "type": "number" },
+        "priceKm": { "type": "number" },
+        "hiredByUid": { "type": "string" },
+        "routeSpec": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "booked", "transit"] },
+        "eta": { "type": "string" },
+        "sharedWith": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "vehicleType", "driverName", "contact", "capacityTons", "priceKm", "status", "createdAt"]
+    },
+    "WarehouseStorage": {
+      "title": "WarehouseStorage",
+      "description": "Subscribed storage lockers and strategic price crash silos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["cold", "dry"] },
+        "capacityAvailableTons": { "type": "number" },
+        "bookedTons": { "type": "number" },
+        "cropTypeAllowed": { "type": "string" },
+        "basePricePerTonDay": { "type": "number" },
+        "durationMaxDays": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "name", "type", "capacityAvailableTons", "bookedTons", "basePricePerTonDay", "createdAt"]
+    },
+    "CooperativeFinance": {
+      "title": "CooperativeFinance",
+      "description": "Multi-member split ledger to track shared expenditures and APMC margins",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "dieselLitres": { "type": "number" },
+        "paidByUid": { "type": "string" },
+        "paidByName": { "type": "string" },
+        "actualProfit": { "type": "number" },
+        "pendingSettlements": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "description", "category", "totalAmount", "paidByUid", "paidByName", "createdAt"]
+    },
+    "EmergencyAlert": {
+      "title": "EmergencyAlert",
+      "description": "SOS emergency alerts broadcasted by members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "type": { "type": "string" },
+        "severity": { "type": "string", "enum": ["info", "alert", "critical"] },
+        "message": { "type": "string" },
+        "district": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "type", "severity", "message", "authorName", "createdAt"]
+    },
+    "GovernmentBenefit": {
+      "title": "GovernmentBenefit",
+      "description": "Central and state subsidy catalog database entries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cooperativeId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "subsidyAmount": { "type": "string" },
+        "eligibility": { "type": "string" },
+        "documentsNeeded": { "type": "array" },
+        "applyUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cooperativeId", "title", "category", "subsidyAmount", "createdAt"]
+    },
+    "VerificationRequest": {
+      "title": "VerificationRequest",
+      "description": "User profile verification documents and validation request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "userRole": { "type": "string" },
+        "phone": { "type": "string" },
+        "aadhaarNumber": { "type": "string" },
+        "docUrl": { "type": "string" },
+        "proofUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "userRole", "phone", "status", "createdAt"]
+    },
+    "VerifiedUser": {
+      "title": "VerifiedUser",
+      "description": "Verified farmers or buyers with authenticated badges",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "userRole": { "type": "string" },
+        "verifiedBadge": { "type": "boolean" },
+        "coopTag": { "type": "string" },
+        "verifiedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "name", "verifiedBadge", "verifiedAt"]
+    },
+    "TrustScore": {
+      "title": "TrustScore",
+      "description": "Reputation analytics and digital trust assessment metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "score": { "type": "number" },
+        "completedDeals": { "type": "number" },
+        "ratingAverage": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "score", "updatedAt"]
+    },
+    "MarketPrice": {
+      "title": "MarketPrice",
+      "description": "Nearby mandi prices and market benchmarks for comparison",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cropName": { "type": "string" },
+        "averagePrice": { "type": "number" },
+        "mandiLocation": { "type": "string" },
+        "trend": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cropName", "averagePrice", "mandiLocation", "updatedAt"]
+    },
+    "AiPriceAudit": {
+      "title": "AiPriceAudit",
+      "description": "Automatic AI analysis comparing product prices against local mandis",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "fairnessScore": { "type": "number" },
+        "auditStatus": { "type": "string" },
+        "alertMessage": { "type": "string" },
+        "suggestion": { "type": "string" },
+        "auditedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "productId", "fairnessScore", "auditStatus", "alertMessage", "auditedAt"]
+    },
+    "LiveDelivery": {
+      "title": "LiveDelivery",
+      "description": "Real-time delivery progress coordinate status and driver chat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "sellerUid": { "type": "string" },
+        "buyerUid": { "type": "string" },
+        "status": { "type": "string" },
+        "eta": { "type": "string" },
+        "driverName": { "type": "string" },
+        "driverPhone": { "type": "string" },
+        "routeCoordinates": { "type": "array" },
+        "currentProgress": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orderId", "status", "eta", "updatedAt"]
+    },
+    "DeliveryStatus": {
+      "title": "DeliveryStatus",
+      "description": "Detailed shipping checkpoint details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deliveryId": { "type": "string" },
+        "checkpoint": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "deliveryId", "checkpoint", "updatedAt"]
+    },
+    "CompletedOrder": {
+      "title": "CompletedOrder",
+      "description": "Secure archives for historical order transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "quantity": { "type": "string" },
+        "totalPrice": { "type": "string" },
+        "farmerUid": { "type": "string" },
+        "buyerUid": { "type": "string" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orderId", "productTitle", "farmerUid", "buyerUid", "completedAt"]
+    },
+    "MarketplaceTransaction": {
+      "title": "MarketplaceTransaction",
+      "description": "Immutable ledger record for rural marketplace settlements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "settledAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orderId", "amount", "status", "settledAt"]
+    },
+    "MarketplaceReview": {
+      "title": "MarketplaceReview",
+      "description": "Reviews and ratings for completed farmer-buyer crop transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "productId": { "type": "string" },
+        "raterUid": { "type": "string" },
+        "raterName": { "type": "string" },
+        "score": { "type": "number" },
+        "reviewText": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orderId", "raterUid", "raterName", "score", "reviewText", "createdAt"]
+    },
+    "MarketplaceRating": {
+      "title": "MarketplaceRating",
+      "description": "Aggregated user or cooperative ratings summary statistics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "averageRating": { "type": "number" },
+        "totalReviews": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "averageRating", "totalReviews", "updatedAt"]
+    },
+    "PushSubscription": {
+      "title": "PushSubscription",
+      "description": "FCM/WebPush subscription details for user dynamic push notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "subscription": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "subscription", "createdAt"]
+    },
+    "NotificationQueue": {
+      "title": "NotificationQueue",
+      "description": "FCM trigger logs for background execution sync",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipientUid": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "status": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "recipientUid", "title", "body", "status"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Spam or misconduct reports targeted by farmers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string" },
+        "reporterUid": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "targetId", "reporterUid", "reason", "status", "createdAt"]
+    },
+    "ModerationLog": {
+      "title": "ModerationLog",
+      "description": "System moderation action and overrides log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "moderatorId": { "type": "string" },
+        "action": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "moderatorId", "action", "targetId", "createdAt"]
+    },
+    "FlaggedContent": {
+      "title": "FlaggedContent",
+      "description": "Posts or marketplace items quarantined by safety system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemType": { "type": "string" },
+        "originalData": { "type": "object" },
+        "flaggedReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "itemType", "flaggedReason", "createdAt"]
+    },
+    "ChatbotMemory": {
+      "title": "ChatbotMemory",
+      "description": "AI agent persistent memories for targeted hyper-localized farming recommendations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "farmerCrops": { "type": "array" },
+        "district": { "type": "string" },
+        "irrigationType": { "type": "string" },
+        "pestHistory": { "type": "array" },
+        "financialPatterns": { "type": "object" },
+        "marketplaceBehavior": { "type": "object" },
+        "preferredLanguage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "updatedAt"]
+    },
+    "AiContextHistory": {
+      "title": "AiContextHistory",
+      "description": "Back-and-forth session summaries from farmers conversational assistant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "summary": { "type": "string" },
+        "insights": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "summary", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Primary community posts storage"
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Subcollection storing nested comments"
+    },
+    "/posts/{postId}/likes/{userId}": {
+      "schema": "Like",
+      "description": "Subcollection track-marking secure atomic votes, prevent multiple votes"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Centralized database of farmer and user identifiers"
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Farming chat rooms and channels"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages sent within a specific chat room"
+    },
+    "/presence/{uid}": {
+      "schema": "Presence",
+      "description": "Realtime user state indicators"
+    },
+    "/cooperatives/{cooperativeId}": {
+      "schema": "Cooperative",
+      "description": "Village, crop, machinery, and irrigation cooperative networks"
+    },
+    "/cooperativeMembers/{memberId}": {
+      "schema": "CooperativeMember",
+      "description": "Members of cooperative groups"
+    },
+    "/cooperativeInvites/{inviteId}": {
+      "schema": "CooperativeInvite",
+      "description": "Invitations to join cooperative groups"
+    },
+    "/cooperativeChats/{chatId}": {
+      "schema": "CooperativeChat",
+      "description": "Chat metadata and counters"
+    },
+    "/cooperativeMessages/{messageId}": {
+      "schema": "CooperativeMessage",
+      "description": "Realtime cooperative chat messages"
+    },
+    "/shared_resources/{resourceId}": {
+      "schema": "SharedResource",
+      "description": "Shared tractors, irrigation sources, labor pools, and bulk purchases"
+    },
+    "/cooperative_chats/{messageId}": {
+      "schema": "CooperativeChatMessage",
+      "description": "Text, voice, image, and translated cooperative chat logs"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Announcements made inside cooperatives"
+    },
+    "/machinery/{machineryId}": {
+      "schema": "Machinery",
+      "description": "Shared machinery listings"
+    },
+    "/machineryBookings/{bookingId}": {
+      "schema": "MachineryBooking",
+      "description": "Rent bookings for agricultural machinery"
+    },
+    "/laborRequests/{laborRequestId}": {
+      "schema": "LaborRequest",
+      "description": "Hiring requests for hand labor pooling"
+    },
+    "/irrigationSchedules/{scheduleId}": {
+      "schema": "IrrigationSchedule",
+      "description": "Shared irrigation calendars and timing systems"
+    },
+    "/irrigationAlerts/{alertId}": {
+      "schema": "IrrigationAlert",
+      "description": "Precision water alerts and irrigation guidelines"
+    },
+    "/marketplaceProducts/{productId}": {
+      "schema": "MarketplaceProduct",
+      "description": "Real crop harvest listings created by farmers"
+    },
+    "/buyerInquiries/{inquiryId}": {
+      "schema": "BuyerInquiry",
+      "description": "Direct inquiry requests for marketplace items"
+    },
+    "/marketplaceOrders/{orderId}": {
+      "schema": "MarketplaceOrder",
+      "description": "Direct orders coordinate bookings between farmers and buyers"
+    },
+    "/pooledHarvests/{pooledHarvestId}": {
+      "schema": "PooledHarvest",
+      "description": "Farmer-combined harvests and aggregated supplies"
+    },
+    "/transportBookings/{bookingId}": {
+      "schema": "TransportBooking",
+      "description": "Cooperative transport scheduling tracks and cargo split reservations"
+    },
+    "/warehouseStorage/{storageId}": {
+      "schema": "WarehouseStorage",
+      "description": "Cold storage slots and central warehouse silo bookings"
+    },
+    "/cooperativeFinances/{financeId}": {
+      "schema": "CooperativeFinance",
+      "description": "Cooperative ledger for joint cost splittings and invoices"
+    },
+    "/emergencyAlerts/{alertId}": {
+      "schema": "EmergencyAlert",
+      "description": "Cooperative SOS flood/pest warnings"
+    },
+    "/governmentBenefits/{benefitId}": {
+      "schema": "GovernmentBenefit",
+      "description": "Subsidy details mapped to cooperative targets"
+    },
+    "/verificationRequests/{requestId}": {
+      "schema": "VerificationRequest",
+      "description": "Buyer and seller validation requests and approvals"
+    },
+    "/verifiedUsers/{userId}": {
+      "schema": "VerifiedUser",
+      "description": "Verified users with system-issued trust badges"
+    },
+    "/trustScores/{userId}": {
+      "schema": "TrustScore",
+      "description": "User overall marketplace trust levels and rating indices"
+    },
+    "/marketPrices/{priceId}": {
+      "schema": "MarketPrice",
+      "description": "Aggregated local mandis reference benchmarks"
+    },
+    "/aiPriceAudits/{auditId}": {
+      "schema": "AiPriceAudit",
+      "description": "Automatic AI listings price evaluations"
+    },
+    "/liveDeliveries/{deliveryId}": {
+      "schema": "LiveDelivery",
+      "description": "Ongoing transport orders with real-time ETA estimates"
+    },
+    "/deliveryStatus/{statusId}": {
+      "schema": "DeliveryStatus",
+      "description": "Checkpoints and transit confirmations"
+    },
+    "/completedOrders/{orderId}": {
+      "schema": "CompletedOrder",
+      "description": "Sealed historic crop deals and complete archives"
+    },
+    "/marketplaceTransactions/{txId}": {
+      "schema": "MarketplaceTransaction",
+      "description": "Market payments ledger records"
+    },
+    "/marketplaceReviews/{reviewId}": {
+      "schema": "MarketplaceReview",
+      "description": "Crop transactions quality and conduct feedback"
+    },
+    "/marketplaceRatings/{ratingId}": {
+      "schema": "MarketplaceRating",
+      "description": "Averaged reputation analytics of peers"
+    },
+    "/pushSubscriptions/{subId}": {
+      "schema": "PushSubscription",
+      "description": "Realtime notification subscription details representation"
+    },
+    "/notificationQueue/{queueId}": {
+      "schema": "NotificationQueue",
+      "description": "FCM cloud sync trigger logging"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Member flagged content notifications and abuse tracking"
+    },
+    "/moderationLogs/{logId}": {
+      "schema": "ModerationLog",
+      "description": "Admin actions auditing for ecosystem peace"
+    },
+    "/flaggedContent/{flagId}": {
+      "schema": "FlaggedContent",
+      "description": "Holds locked/flagged objects safely"
+    },
+    "/chatbotMemory/{userId}": {
+      "schema": "ChatbotMemory",
+      "description": "AI long term farming metrics profiles and configurations cache"
+    },
+    "/aiContextHistory/{historyId}": {
+      "schema": "AiContextHistory",
+      "description": "Structured conversations analysis storage"
+    }
+  }
+}

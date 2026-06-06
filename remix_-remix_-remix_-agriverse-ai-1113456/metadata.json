@@ -1,0 +1,18 @@
+{
+  "name": "Remix: Remix: Remix: AgriVerse AI 1113456",
+  "description": "Bilingual, voice-enabled modern mobile app for farmers featuring real-time AI Crop Advisory, disease diagnosis, weather warnings, market price predictions, and local community post sharing.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ],
+  "icons": [
+    {
+      "src": "/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

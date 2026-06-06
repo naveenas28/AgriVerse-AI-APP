@@ -1,0 +1,516 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.uid != null);
+    }
+
+    // Entity validation functions
+    function isValidPost(data) {
+      return data.keys().hasAll(['id', 'author', 'authorUid', 'content', 'likes', 'district', 'createdAt'])
+        && data.keys().size() <= 13
+        && data.id is string && data.id.size() <= 128
+        && data.author is string && data.author.size() <= 100
+        && data.authorUid == request.auth.uid
+        && data.content is string && data.content.size() <= 1500
+        && data.likes is number && data.likes == 0
+        && data.district is string && data.district.size() <= 100
+        && data.createdAt == request.time;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['id', 'author', 'authorUid', 'content', 'createdAt'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() <= 128
+        && data.author is string && data.author.size() <= 100
+        && data.authorUid == request.auth.uid
+        && data.content is string && data.content.size() <= 500
+        && data.createdAt == request.time;
+    }
+
+    // Rules matching
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isVerifiedUser() && isValidId(postId) && isValidPost(request.resource.data);
+      allow update: if isSignedIn() && (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments'])
+      );
+      allow delete: if isSignedIn() && isOwner(resource.data.authorUid);
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isVerifiedUser() && isValidId(commentId) && isValidComment(request.resource.data);
+        allow update, delete: if isSignedIn() && isOwner(resource.data.authorUid);
+      }
+
+      match /likes/{userId} {
+        allow read: if isSignedIn();
+        allow create, delete: if isVerifiedUser() && isOwner(userId);
+      }
+    }
+
+    match /profiles/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isVerifiedUser() && isOwner(uid) && request.resource.data.keys().hasAll(['uid', 'displayName', 'district'])
+        && request.resource.data.uid == uid;
+      allow delete: if false;
+    }
+
+    // NEW CHAT COLLECTIONS & PRESENCE RULES
+    match /chats/{chatId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(chatId);
+      allow update: if isSignedIn();
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(messageId) && request.resource.data.senderUid == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.senderUid == request.auth.uid;
+      }
+    }
+
+    match /presence/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isOwner(uid);
+      allow delete: if false;
+    }
+
+    // COOPERATIVE NETWORK RULES
+    match /cooperatives/{cooperativeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(cooperativeId) && request.resource.data.creatorUid == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.creatorUid == request.auth.uid;
+    }
+
+    match /cooperativeMembers/{memberId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || exists(/databases/$(database)/documents/cooperatives/$(resource.data.cooperativeId)) && get(/databases/$(database)/documents/cooperatives/$(resource.data.cooperativeId)).data.creatorUid == request.auth.uid);
+    }
+
+    match /cooperativeInvites/{inviteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.fromUid == request.auth.uid;
+      allow update: if isSignedIn() && (request.resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+      allow delete: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+    }
+
+    match /cooperativeChats/{chatId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /cooperativeMessages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.senderUid == request.auth.uid;
+    }
+
+    match /shared_resources/{resourceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(resourceId) && request.resource.data.providerUid == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.providerUid == request.auth.uid;
+    }
+
+    match /cooperative_chats/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(messageId) && request.resource.data.senderUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.senderUid == request.auth.uid;
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(announcementId) && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /machinery/{machineryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(machineryId) && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /machineryBookings/{bookingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(bookingId) && request.resource.data.renterUid == request.auth.uid;
+      allow update: if isSignedIn() && (request.resource.data.renterUid == request.auth.uid || request.resource.data.ownerUid == request.auth.uid || resource.data.renterUid == request.auth.uid || resource.data.ownerUid == request.auth.uid);
+      allow delete: if isSignedIn() && resource.data.renterUid == request.auth.uid;
+    }
+
+    match /laborRequests/{laborRequestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(laborRequestId) && request.resource.data.creatorUid == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.creatorUid == request.auth.uid;
+    }
+
+    match /irrigationSchedules/{scheduleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(scheduleId) && request.resource.data.farmerUid == request.auth.uid;
+      allow update: if isSignedIn() && (request.resource.data.farmerUid == request.auth.uid || resource.data.farmerUid == request.auth.uid);
+      allow delete: if isSignedIn() && resource.data.farmerUid == request.auth.uid;
+    }
+
+    match /irrigationAlerts/{alertId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
+
+    // CROP MARKETPLACE RULES
+    match /marketplaceProducts/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(productId) && request.resource.data.farmerUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.farmerUid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.farmerUid == request.auth.uid;
+    }
+
+    match /buyerInquiries/{inquiryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(inquiryId) && request.resource.data.buyerUid == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.farmerUid == request.auth.uid);
+      allow delete: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.farmerUid == request.auth.uid);
+    }
+
+    match /marketplaceOrders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(orderId) && request.resource.data.buyerUid == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || request.resource.data.farmerUid == request.auth.uid || resource.data.farmerUid == request.auth.uid);
+      allow delete: if isSignedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.farmerUid == request.auth.uid);
+    }
+
+    match /pooledHarvests/{pooledHarvestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(pooledHarvestId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /transportBookings/{bookingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(bookingId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /warehouseStorage/{storageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(storageId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /cooperativeFinances/{financeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(financeId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /emergencyAlerts/{alertId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(alertId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /governmentBenefits/{benefitId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(benefitId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /verificationRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(requestId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /verifiedUsers/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /trustScores/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /marketPrices/{priceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(priceId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /aiPriceAudits/{auditId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(auditId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /liveDeliveries/{deliveryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(deliveryId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /deliveryStatus/{statusId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(statusId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /completedOrders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(orderId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /marketplaceTransactions/{txId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(txId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /marketplaceReviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(reviewId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    match /marketplaceRatings/{ratingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(ratingId);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    // PHASE 3 COLLECTIONS
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /pestPredictions/{predId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(predId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /pestAlerts/{alertId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(alertId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /pestHistory/{histId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(histId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /cropCalendars/{calId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(calId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /cropSchedules/{schId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(schId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /soilReports/{repId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(repId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /soilHealthScores/{scoreId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(scoreId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /financialInsights/{insId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(insId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /farmExpenses/{expId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(expId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /farmProfits/{profId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(profId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /expenseLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(logId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /expenseCategories/{catId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(catId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /expenses/{expId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(expId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /yieldForecasts/{foreId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(foreId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /cropYieldHistory/{histId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(histId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /tutorLessons/{lesId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(lesId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /learningHistory/{histId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(histId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /voiceSessions/{sessId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(sessId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /voiceCommands/{commId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(commId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /aiConversations/{convId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(convId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /aiMemory/{memId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(memId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /aiRecommendations/{recId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(recId);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(notifId);
+      allow update, delete: if isSignedIn();
+    }
+
+    // PHASE 5 ADVANCED ENTERPRISE RULES
+    match /pushSubscriptions/{subId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(subId) && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /notificationQueue/{queueId} {
+      allow read: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow create, update: if isSignedIn() && isValidId(queueId);
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSignedIn() && (resource.data.reporterUid == request.auth.uid || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow create: if isSignedIn() && isValidId(reportId) && request.resource.data.reporterUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /moderationLogs/{logId} {
+      allow read, write: if isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /flaggedContent/{flagId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /chatbotMemory/{userId} {
+      allow read, write: if isSignedIn() && isOwner(userId);
+    }
+
+    match /aiContextHistory/{historyId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(historyId) && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+  }
+}
